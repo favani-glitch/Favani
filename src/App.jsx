@@ -236,6 +236,7 @@ function Dashboard({ session, empresas, company, setCompany, companyMenuOpen, se
     { id: "clientes", label: "Clientes", icon: Users },
     { id: "pagar", label: "Contas a Pagar", icon: ArrowDownCircle },
     { id: "receber", label: "Contas a Receber", icon: ArrowUpCircle },
+    { id: "relatorios", label: "Relatórios", icon: FileBarChart },
     { id: "emissao", label: "Notas & Boletos", icon: FileText },
   ];
 
@@ -310,6 +311,7 @@ function Dashboard({ session, empresas, company, setCompany, companyMenuOpen, se
             {tab === "clientes" && <ClientesTab company={company} clientes={clientes} reload={() => loadAll(company.id)} />}
             {tab === "pagar" && <PagarTab company={company} pagar={pagar} reload={() => loadAll(company.id)} />}
             {tab === "receber" && <ReceberTab company={company} receber={receber} clientes={clientes} reload={() => loadAll(company.id)} />}
+            {tab === "relatorios" && <RelatoriosTab company={company} lancamentos={lancamentos} pagar={pagar} receber={receber} />}
             {tab === "emissao" && <EmissaoTab company={company} emissoes={emissoes} clientes={clientes} reload={() => loadAll(company.id)} />}
           </>
         )}
@@ -592,6 +594,93 @@ function ReceberTab({ company, receber, clientes, reload }) {
           </tbody>
         </table>
       </Panel>
+    </div>
+  );
+}
+
+function downloadCsv(filename, rows, headers) {
+  const csv = [headers.join(";"), ...rows.map(r => headers.map(h => `"${(r[h] ?? "")}"`).join(";"))].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function RelatoriosTab({ company, lancamentos, pagar, receber }) {
+  const porMes = useMemo(() => {
+    const map = {};
+    lancamentos.forEach(l => {
+      const mes = l.data?.slice(0, 7); // YYYY-MM
+      if (!mes) return;
+      map[mes] = map[mes] || { mes, entradas: 0, saidas: 0 };
+      map[mes][l.tipo === "entrada" ? "entradas" : "saidas"] += Number(l.valor);
+    });
+    return Object.values(map).sort((a, b) => a.mes.localeCompare(b.mes));
+  }, [lancamentos]);
+
+  const totalEntradas = lancamentos.filter(l => l.tipo === "entrada").reduce((s, l) => s + Number(l.valor), 0);
+  const totalSaidas = lancamentos.filter(l => l.tipo === "saida").reduce((s, l) => s + Number(l.valor), 0);
+
+  return (
+    <div>
+      <SectionTitle sub={`Resumo gerencial — ${company.nome}`}>Relatórios</SectionTitle>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 22 }}>
+        <Panel style={{ padding: 16 }}>
+          <div style={{ fontSize: 13, color: T.inkSoft, fontWeight: 500 }}>Total de entradas</div>
+          <div style={{ fontSize: 22, fontWeight: 700, marginTop: 8, fontFamily: "'Fraunces', serif", color: T.teal }}>{fmt(totalEntradas)}</div>
+        </Panel>
+        <Panel style={{ padding: 16 }}>
+          <div style={{ fontSize: 13, color: T.inkSoft, fontWeight: 500 }}>Total de saídas</div>
+          <div style={{ fontSize: 22, fontWeight: 700, marginTop: 8, fontFamily: "'Fraunces', serif", color: T.brick }}>{fmt(totalSaidas)}</div>
+        </Panel>
+        <Panel style={{ padding: 16 }}>
+          <div style={{ fontSize: 13, color: T.inkSoft, fontWeight: 500 }}>Resultado</div>
+          <div style={{ fontSize: 22, fontWeight: 700, marginTop: 8, fontFamily: "'Fraunces', serif" }}>{fmt(totalEntradas - totalSaidas)}</div>
+        </Panel>
+      </div>
+
+      {porMes.length > 0 && (
+        <Panel style={{ padding: "18px 20px", marginBottom: 22 }}>
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>Entradas x Saídas por mês</div>
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={porMes}>
+              <defs>
+                <linearGradient id="ent2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={T.teal} stopOpacity={0.3} /><stop offset="100%" stopColor={T.teal} stopOpacity={0} /></linearGradient>
+                <linearGradient id="sai2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={T.brick} stopOpacity={0.25} /><stop offset="100%" stopColor={T.brick} stopOpacity={0} /></linearGradient>
+              </defs>
+              <CartesianGrid stroke={T.line} vertical={false} />
+              <XAxis dataKey="mes" tick={{ fontSize: 12, fill: T.inkSoft }} axisLine={{ stroke: T.line }} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: T.inkSoft }} axisLine={false} tickLine={false} />
+              <Tooltip formatter={(v) => fmt(v)} contentStyle={{ borderRadius: 8, border: `1px solid ${T.line}`, fontSize: 13 }} />
+              <Area type="monotone" dataKey="entradas" stroke={T.teal} fill="url(#ent2)" strokeWidth={2} />
+              <Area type="monotone" dataKey="saidas" stroke={T.brick} fill="url(#sai2)" strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Panel>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+        <Panel style={{ padding: 16 }}>
+          <FileBarChart size={18} color={T.teal} />
+          <div style={{ fontWeight: 600, fontSize: 14, marginTop: 10 }}>Lançamentos</div>
+          <div style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 3, marginBottom: 12 }}>Exportar tudo em CSV (Excel)</div>
+          <button onClick={() => downloadCsv("lancamentos.csv", lancamentos, ["data", "descricao", "tipo", "valor", "conciliado"])} style={btnGhost}>Baixar CSV</button>
+        </Panel>
+        <Panel style={{ padding: 16 }}>
+          <FileBarChart size={18} color={T.amber} />
+          <div style={{ fontWeight: 600, fontSize: 14, marginTop: 10 }}>Contas a pagar</div>
+          <div style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 3, marginBottom: 12 }}>Exportar tudo em CSV (Excel)</div>
+          <button onClick={() => downloadCsv("contas_pagar.csv", pagar, ["fornecedor", "vencimento", "valor", "status"])} style={btnGhost}>Baixar CSV</button>
+        </Panel>
+        <Panel style={{ padding: 16 }}>
+          <FileBarChart size={18} color={T.teal} />
+          <div style={{ fontWeight: 600, fontSize: 14, marginTop: 10 }}>Contas a receber</div>
+          <div style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 3, marginBottom: 12 }}>Exportar tudo em CSV (Excel)</div>
+          <button onClick={() => downloadCsv("contas_receber.csv", receber.map(r => ({ ...r, cliente: r.clientes?.nome })), ["cliente", "vencimento", "valor", "status"])} style={btnGhost}>Baixar CSV</button>
+        </Panel>
+      </div>
     </div>
   );
 }
