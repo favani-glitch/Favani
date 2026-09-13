@@ -79,7 +79,7 @@ function AuthScreen() {
           <div style={{ width: 26, height: 26, borderRadius: 6, background: T.teal, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ color: "#fff", fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 15 }}>N</span>
           </div>
-          <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 18 }}>Núcleo BPO</span>
+          <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 18 }}>Fava Controller</span>
         </div>
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <Field label="E-mail">
@@ -254,7 +254,7 @@ function Dashboard({ session, empresas, company, setCompany, companyMenuOpen, se
           <div style={{ width: 26, height: 26, borderRadius: 6, background: T.teal, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ color: "#fff", fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 15 }}>N</span>
           </div>
-          <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 17 }}>Núcleo BPO</span>
+          <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 17 }}>Fava Controller</span>
         </div>
 
         <div style={{ position: "relative" }}>
